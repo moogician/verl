@@ -80,6 +80,11 @@ if __name__ == '__main__':
     TEST_SIZE = len(raw_dataset) * args.test_ratio
     TRAIN_SIZE = len(raw_dataset) - TEST_SIZE
 
+    #save_path = tmp_dir / "generated_0" / ground_truth['file_path']
+    # WARNING: the file_path originally looks like this
+    #"benchmark/lang/c/cwe_119_0_c_task.c"
+    # remember to remove the "benchmark/" prefix for RL to work properly
+
     #assert len(raw_dataset) > TRAIN_SIZE + TEST_SIZE
     train_dataset = raw_dataset.select(range(TRAIN_SIZE))
     test_dataset = raw_dataset.select(range(TRAIN_SIZE, TRAIN_SIZE + TEST_SIZE))
