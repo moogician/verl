@@ -1,0 +1,6 @@
+[submodule "models/DeepSeek-R1-Distill-Qwen-1.5B"]
+	path = models/DeepSeek-R1-Distill-Qwen-1.5B
+	url = git@hf.co:deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+[submodule "models/DeepSeek-R1-Distill-Qwen-7B"]
+	path = models/DeepSeek-R1-Distill-Qwen-7B
+	url = git@hf.co:deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
