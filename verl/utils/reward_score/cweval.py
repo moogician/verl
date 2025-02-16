@@ -7,30 +7,30 @@ client = docker.from_env()
 # need to start a container from here for testing
 
 def start_container():
-        ret = client.containers.run(  
-            "co1lin/cweval",
-            'zsh',
-            detach=True,
-            tty=True,
-            stdout=True,
-            stderr=True,
-            network_mode="host",
-        )
-        
-        try:
-            while ret.status != "running":
-                sleep(1)
-                ret.reload()
-        except Exception as e:
-            raise RuntimeError("Container start error", e)
+    ret = client.containers.run(  
+        "co1lin/cweval",
+        'zsh',
+        detach=True,
+        tty=True,
+        stdout=True,
+        stderr=True,
+        network_mode="host",
+    )
+    
+    try:
+        while ret.status != "running":
+            sleep(1)
+            ret.reload()
+    except Exception as e:
+        raise RuntimeError("Container start error", e)
 
-        exit_code, result = ret.exec_run(['zsh', '-c', r"sed -i '62a \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max_tokens=100000,' cweval/ai.py"])
-        assert exit_code == 0, result
-        exit_code, result = ret.exec_run(['zsh', '-c', r"sed -i '97s/only_first/only_last/g' cweval/evaluate.py"])
-        assert exit_code == 0, result
-        exit_code, result = ret.exec_run(['zsh', '-c', r"sed -i '212s/if only_last:/if only_last and len(code_blocks) > 0:/' cweval/commons.py"])
-        assert exit_code == 0, result
-        return ret
+    exit_code, result = ret.exec_run(['zsh', '-c', r"sed -i '62a \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ max_tokens=100000,' cweval/ai.py"])
+    assert exit_code == 0, result
+    exit_code, result = ret.exec_run(['zsh', '-c', r"sed -i '97s/only_first/only_last/g' cweval/evaluate.py"])
+    assert exit_code == 0, result
+    exit_code, result = ret.exec_run(['zsh', '-c', r"sed -i '212s/if only_last:/if only_last and len(code_blocks) > 0:/' cweval/commons.py"])
+    assert exit_code == 0, result
+    return ret
 
 container: Container = start_container()
 
@@ -60,16 +60,16 @@ def read_from_container(container, file_path):
 
     # Extract the file content
     with tarfile.open(fileobj=tar_bytes, mode="r") as tar:
-        file_member = tar.getmember(file_path.lstrip("/"))  # Remove leading slash
+        file_member = tar.getmember(file_path.split('/')[-1])  # get file name
         file_content = tar.extractfile(file_member).read().decode("utf-8") # type: ignore
     return file_content
 
 def recreate(d: Path):
-    shutil.rmtree(d)
+    shutil.rmtree(d, ignore_errors=True)
     d.mkdir(parents=True)
 
 def compute_score(solution_str, ground_truth) -> float:
-    # prepare docker env WARNING: check closer what's the proper path for evaluation
+    # prepare docker env
     tmp_dir = Path("evals")
     recreate(tmp_dir)
     #"benchmark/lang/c/cwe_119_0_c_task.c"
@@ -77,18 +77,24 @@ def compute_score(solution_str, ground_truth) -> float:
     save_path.parent.mkdir(parents=True)
     with open(save_path, "w") as f:
         f.write(solution_str)
+    #input("check evals folder")
 
     # delete previous evals folder in docker
     container.exec_run("sudo rm -rf /home/ubuntu/CWEval/evals/")
+    container.exec_run("mkdir /home/ubuntu/CWEval/evals/")
     copy_to_container(container, tmp_dir, "/home/ubuntu/CWEval/evals/")
+    #input("check evals in container")
 
     # run eval in the docker
     command = "source ~/.zshrc && source .env && python cweval/evaluate.py pipeline --eval_path evals --docker False"
-    container.exec_run(command)
-    res = json.loads(read_from_container(container, "evals/res_all.json"))
+    container.exec_run(['zsh', '-c', command])
+    #print(output)
+    #input("after run")
+    res = json.loads(read_from_container(container, "/home/ubuntu/CWEval/evals/res_all.json"))
     assert len(res) == 1
-    func_secure = next(res.values())['func_secure'][0]
-    functional = next(res.values())['functional'][0]
-    secure = next(res.values())['secure'][0]
+    res = list(res.values())[0]
+    func_secure = res['func_secure'][0]
+    functional = res['functional'][0]
+    secure = res['secure'][0]
+    print(res)
     return 1 if func_secure else 0.5*functional # TODO: change this later
-
